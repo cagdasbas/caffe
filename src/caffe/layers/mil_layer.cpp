@@ -19,6 +19,7 @@ void MILLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
           || this->layer_param_.mil_param().pool()
           == MILParameter_PoolMethod_MAX)
           << "MIL implemented only for average and max pooling.";
+  batch_size_ = pool_param.batch_size();
 }
 
 template <typename Dtype>
@@ -28,9 +29,12 @@ void MILLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       << "corresponding to (batch_size, class_size)";
   // assume after last fully connected
   instance_ = bottom[0]->shape()[0];
+  CHECK_EQ(instance_ % batch_size_, 0) << "Instance count must be integer" 
+          <<  "multiple of pool batch size";
+  
   class_ = bottom[0]->shape()[1];
   vector<int> shape(2);
-  shape[0] = 1;
+  shape[0] = instance_ / batch_size_;
   shape[1] = class_;
   //top[0] -> pooled probabilities
   top[0]->Reshape(shape);
@@ -38,7 +42,7 @@ void MILLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   max_idx_.Reshape(shape);
   //top[1] -> pooled labels 
   vector<int> label_shape_(1);
-  label_shape_[0] = 1;
+  label_shape_[0] = instance_ / batch_size_;
   top[1]->Reshape(label_shape_);
 }
 
@@ -55,21 +59,28 @@ void MILLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   int* mask = max_idx_.mutable_cpu_data(); 
   // Different pooling methods. We explicitly do the switch outside the for
   // loop to save time, although this results in more code.
-  int mindex = 0;
+  int box_num = instance_ / batch_size_;
+  int mindex = 0, start_offset = 0, topindex = 0, bottomlabelindex = 0;
   switch (this->layer_param_.mil_param().pool()) {
   case MILParameter_PoolMethod_MAX:
       
     caffe_set(top_count, Dtype(-FLT_MAX), top_data);
-    caffe_set(top_count_label, bottom_label[0], top_label);
-    for (int c = 0; c < class_; c++){
-        for (int i = 0; i < instance_; i++){
-            mindex = i * class_ + c;
-            if(bottom_data[mindex] > top_data[c]){
-                top_data[c] = bottom_data[mindex]; // set data
-                /*if (bottom_label[i] != top_label[i]){ // check if label consistency in batch
+    caffe_set(top_count_label, Dtype(0), top_label);
+    for (int bni = 0; bni < box_num; bni++){
+        start_offset = bni * class_ * batch_size_;
+        for (int c = 0; c < class_; c++){
+            for (int bi = 0; bi < batch_size_; bi++){
+                mindex = start_offset + bi * class_ + c;
+                topindex = bni * class_ + c;
+                bottomlabelindex = bni * batch_size_ + bi;
+                if(bottom_data[mindex] > top_data[topindex]){
+                    top_data[topindex] = bottom_data[mindex]; // set data
+                    top_label[bni] = bottom_label[bottomlabelindex];
+                    mask[topindex] = mindex;
+                }
+                if (bottom_label[bottomlabelindex] != top_label[bni]){ // check if label consistency in batch
                     LOG(FATAL) << "Label in a batch cannot be different";
-                }*/
-                mask[c] = mindex;
+                }
             }
         }
     }
@@ -95,9 +106,10 @@ void MILLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_set(bottom[0]->count(), Dtype(0), bottom_diff);
   // We'll output the mask to top[1] if it's of size >1.
   const int* mask = max_idx_.mutable_cpu_data();  // suppress warnings about uninitialized variables
+  const int top_count = top[0]->count();
   switch (this->layer_param_.mil_param().pool()) {
   case MILParameter_PoolMethod_MAX:
-    for(int c = 0; c < class_; c++){
+    for(int c = 0; c < top_count ; c++){
         bottom_diff[mask[c]] = top_diff[c];
     }
     break;

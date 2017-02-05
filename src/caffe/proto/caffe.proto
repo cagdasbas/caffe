@@ -918,6 +918,7 @@ message MILParameter {
     STOCHASTIC = 2;
   }
   optional PoolMethod pool = 1 [default = MAX]; // The pooling method
+  optional uint32 batch_size = 2 [default = 1]; // The batch size
 }
 message PowerParameter {
   // PowerLayer computes outputs y = (shift + scale * x) ^ power.

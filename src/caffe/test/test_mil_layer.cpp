@@ -26,18 +26,26 @@ class MILLayerTest : public MultiDeviceTest<TypeParam> {
    virtual void SetUp(){
     Caffe::set_random_seed(1701);
     vector<int> shape_bottom(2);
-    shape_bottom[0] = 3;
-    shape_bottom[1] = 5;
+    shape_bottom[0] = 8;
+    shape_bottom[1] = 3;
     
     blob_bottom_data->Reshape(shape_bottom);
     shape_bottom.resize(1);
-    shape_bottom[0] = 3;
+    shape_bottom[0] = 8;
     blob_bottom_label->Reshape(shape_bottom);
     // fill the values
     FillerParameter filler_param;
     GaussianFiller<Dtype> filler(filler_param);
     filler.Fill(this->blob_bottom_data);
-    filler.Fill(this->blob_bottom_label);
+    //filler.Fill(this->blob_bottom_label);
+    blob_bottom_label->mutable_cpu_data()[0] = 3;
+    blob_bottom_label->mutable_cpu_data()[1] = 3;
+    blob_bottom_label->mutable_cpu_data()[2] = 2;
+    blob_bottom_label->mutable_cpu_data()[3] = 2;
+    blob_bottom_label->mutable_cpu_data()[4] = 1;
+    blob_bottom_label->mutable_cpu_data()[5] = 1;
+    blob_bottom_label->mutable_cpu_data()[6] = 4;
+    blob_bottom_label->mutable_cpu_data()[7] = 4;
     blob_bottom_vec_.push_back(blob_bottom_data);
     blob_bottom_vec_.push_back(blob_bottom_label);
     blob_top_vec_.push_back(blob_top_data);
@@ -60,60 +68,96 @@ class MILLayerTest : public MultiDeviceTest<TypeParam> {
     LayerParameter layer_param;
     MILParameter* mil_param = layer_param.mutable_mil_param();
     mil_param->set_pool(MILParameter_PoolMethod_MAX);
+    mil_param->set_batch_size(2);
     vector<int> shape_bottom(2);
-    shape_bottom[0] = 3;
-    shape_bottom[1] = 5;
+    shape_bottom[0] = 8;
+    shape_bottom[1] = 3;
     blob_bottom_data->Reshape(shape_bottom);
     shape_bottom.resize(1);
-    shape_bottom[0] = 3;
+    shape_bottom[0] = 8;
     blob_bottom_label->Reshape(shape_bottom);
-    // Input: 3x5 channels of:
-    //     [1 1 4 5 8]
-    //     [3 9 10 4 2]
-    //     [1 7 1 8 5]
+    // Input: 8x3 channels of:
+    //     [7 6 4]
+    //     [2 3 7]
+    //     [9 9 3]
+    //     [8 8 7]
+    //     [2 3 4]
+    //     [2 7 4]
+    //     [3 2 3]
+    //     [5 7 8]
     // Created with matlab randi() function
     
     // initialize bottom data (batch of prediction)
-    blob_bottom_data->mutable_cpu_data()[0] = 1;
-    blob_bottom_data->mutable_cpu_data()[1] = 1;
+    blob_bottom_data->mutable_cpu_data()[0] = 7;
+    blob_bottom_data->mutable_cpu_data()[1] = 6;
     blob_bottom_data->mutable_cpu_data()[2] = 4;
-    blob_bottom_data->mutable_cpu_data()[3] = 5;
-    blob_bottom_data->mutable_cpu_data()[4] = 8;
-    blob_bottom_data->mutable_cpu_data()[5] = 3;
+    blob_bottom_data->mutable_cpu_data()[3] = 2;
+    blob_bottom_data->mutable_cpu_data()[4] = 3;
+    blob_bottom_data->mutable_cpu_data()[5] = 7;
     blob_bottom_data->mutable_cpu_data()[6] = 9;
-    blob_bottom_data->mutable_cpu_data()[7] = 10;
-    blob_bottom_data->mutable_cpu_data()[8] = 4;
-    blob_bottom_data->mutable_cpu_data()[9] = 2;
-    blob_bottom_data->mutable_cpu_data()[10] = 1;
+    blob_bottom_data->mutable_cpu_data()[7] = 9;
+    blob_bottom_data->mutable_cpu_data()[8] = 3;
+    blob_bottom_data->mutable_cpu_data()[9] = 8;
+    blob_bottom_data->mutable_cpu_data()[10] = 8;
     blob_bottom_data->mutable_cpu_data()[11] = 7;
-    blob_bottom_data->mutable_cpu_data()[12] = 1;
-    blob_bottom_data->mutable_cpu_data()[13] = 8;
-    blob_bottom_data->mutable_cpu_data()[14] = 5;
+    blob_bottom_data->mutable_cpu_data()[12] = 2;
+    blob_bottom_data->mutable_cpu_data()[13] = 3;
+    blob_bottom_data->mutable_cpu_data()[14] = 4;
+    blob_bottom_data->mutable_cpu_data()[15] = 2;
+    blob_bottom_data->mutable_cpu_data()[16] = 7;
+    blob_bottom_data->mutable_cpu_data()[17] = 4;
+    blob_bottom_data->mutable_cpu_data()[18] = 3;
+    blob_bottom_data->mutable_cpu_data()[19] = 2;
+    blob_bottom_data->mutable_cpu_data()[20] = 3;
+    blob_bottom_data->mutable_cpu_data()[21] = 5;
+    blob_bottom_data->mutable_cpu_data()[22] = 7;
+    blob_bottom_data->mutable_cpu_data()[23] = 8;
     
     // initizalize bottom label (label for each batch element)
     blob_bottom_label->mutable_cpu_data()[0] = 3;
     blob_bottom_label->mutable_cpu_data()[1] = 3;
-    blob_bottom_label->mutable_cpu_data()[2] = 3;
+    blob_bottom_label->mutable_cpu_data()[2] = 2;
+    blob_bottom_label->mutable_cpu_data()[3] = 2;
+    blob_bottom_label->mutable_cpu_data()[4] = 1;
+    blob_bottom_label->mutable_cpu_data()[5] = 1;
+    blob_bottom_label->mutable_cpu_data()[6] = 4;
+    blob_bottom_label->mutable_cpu_data()[7] = 4;
     
     MILLayer<Dtype> layer(layer_param);
     layer.SetUp(blob_bottom_vec_, blob_top_vec_);
-    EXPECT_EQ(this->blob_top_data->num(), 1);
-    EXPECT_EQ(this->blob_top_data->channels(), 5);
-    EXPECT_EQ(this->blob_top_label->num(), 1);
+    EXPECT_EQ(this->blob_top_data->num(), 4);
+    EXPECT_EQ(this->blob_top_data->channels(), 3);
+    EXPECT_EQ(this->blob_top_label->num(), 4);
     EXPECT_EQ(this->blob_top_label->channels(), 1);
     
     layer.Forward(blob_bottom_vec_, blob_top_vec_);
-    // Expected data output: 1x5 channels of:
-    //     [3 9 10 8 8]
-    EXPECT_EQ(blob_top_data->cpu_data()[0], 3);
-    EXPECT_EQ(blob_top_data->cpu_data()[1], 9);
-    EXPECT_EQ(blob_top_data->cpu_data()[2], 10);
-    EXPECT_EQ(blob_top_data->cpu_data()[3], 8);
-    EXPECT_EQ(blob_top_data->cpu_data()[4], 8);
+    // Expected data output: 4x3 channels of:
+    //     [7 6 7]
+    //     [9 9 7]
+    //     [2 7 4]
+    //     [5 7 8]
+    EXPECT_EQ(blob_top_data->cpu_data()[0], 7);
+    EXPECT_EQ(blob_top_data->cpu_data()[1], 6);
+    EXPECT_EQ(blob_top_data->cpu_data()[2], 7);
+    EXPECT_EQ(blob_top_data->cpu_data()[3], 9);
+    EXPECT_EQ(blob_top_data->cpu_data()[4], 9);
+    EXPECT_EQ(blob_top_data->cpu_data()[5], 7);
+    EXPECT_EQ(blob_top_data->cpu_data()[6], 2);
+    EXPECT_EQ(blob_top_data->cpu_data()[7], 7);
+    EXPECT_EQ(blob_top_data->cpu_data()[8], 4);
+    EXPECT_EQ(blob_top_data->cpu_data()[9], 5);
+    EXPECT_EQ(blob_top_data->cpu_data()[10], 7);
+    EXPECT_EQ(blob_top_data->cpu_data()[11], 8);
     
-    // Expected label output: 1x1 channels of:
+    // Expected label output: 4x1 channels of:
     //     [3]
+    //     [1]
+    //     [2]
+    //     [4]
     EXPECT_EQ(blob_top_label->cpu_data()[0], 3);
+    EXPECT_EQ(blob_top_label->cpu_data()[1], 2);
+    EXPECT_EQ(blob_top_label->cpu_data()[2], 1);
+    EXPECT_EQ(blob_top_label->cpu_data()[3], 4);
   }
 };
 
@@ -124,11 +168,12 @@ TYPED_TEST(MILLayerTest, TestSetup) {
   LayerParameter layer_param;
   MILParameter* mil_param = layer_param.mutable_mil_param();
   mil_param->set_pool(MILParameter_PoolMethod_MAX);
+  mil_param->set_batch_size(2);
   MILLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  EXPECT_EQ(this->blob_top_data->num(), 1);
-  EXPECT_EQ(this->blob_top_data->channels(), 5);
-  EXPECT_EQ(this->blob_top_label->num(), 1);
+  EXPECT_EQ(this->blob_top_data->num(), 4);
+  EXPECT_EQ(this->blob_top_data->channels(), 3);
+  EXPECT_EQ(this->blob_top_label->num(), 4);
   EXPECT_EQ(this->blob_top_label->channels(), 1);
 }
 
@@ -169,6 +214,7 @@ TYPED_TEST(MILLayerTest, TestGradientMax) {
   LayerParameter layer_param;
   MILParameter* mil_param = layer_param.mutable_mil_param();
   mil_param->set_pool(MILParameter_PoolMethod_MAX);
+  mil_param->set_batch_size(2);
   MILLayer<Dtype> layer(layer_param);
   GradientChecker<Dtype> checker(1e-4, 1e-2);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
